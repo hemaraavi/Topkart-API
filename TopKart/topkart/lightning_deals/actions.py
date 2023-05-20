@@ -36,7 +36,7 @@ def create_update_lightning_deal(request):
 @user_passes_test(lambda u: u.groups.filter(name='admin').exists())
 def update_order_status(request):
     #updates the order status
-    if request.method == 'POST':
+    if request.method == 'PUT':
         # Checking the payload
         if not request.PUT['order_id']:
             return JsonResponse({'error': 'Order ID is required to update the approve the order'},status=400)
