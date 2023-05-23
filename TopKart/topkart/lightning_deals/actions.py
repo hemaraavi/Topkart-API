@@ -1,12 +1,12 @@
 from django.http import JsonResponse
 from django.contrib.auth.decorators import user_passes_test
 from .common import *
+from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from .models import LightningDeal,Order
 from .views import LightningDealHandler,OrderHandler
 
 
-@csrf_exempt
 @attach_user_to_request
 @user_passes_test(lambda u: u.groups.filter(name='admin').exists())
 def create_update_lightning_deal(request):
@@ -64,18 +64,14 @@ def get_unexpired_deals(request):
 @user_passes_test(lambda u: u.groups.filter(name='customer').exists())
 def place_order(request):
     if request.method == 'POST':
-        # Get customer and lightning deal IDs from the request
-        customer_id = request.POST.get('customer_id')
         lightning_deal_id = request.POST.get('lightning_deal_id')
 
         # Validating the payload
-        if not  customer_id:
-            return JsonResponse({'message': 'Customer not found'}, status=404)
         if not lightning_deal_id:
             return JsonResponse({'message': 'Lightning deal not found'}, status=404)
 
         # Creating a new order
-        return OrderHandler.create_order(request,customer_id,lightning_deal_id)
+        return OrderHandler.create_order(request,request.user.username,lightning_deal_id)
         
     else:
         return JsonResponse({'message': 'Method not allowed'}, status=405)

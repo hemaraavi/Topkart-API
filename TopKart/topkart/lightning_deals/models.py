@@ -6,7 +6,7 @@ from django.contrib.auth.models import Permission,AbstractUser
 class CustomUser(AbstractUser):
     username = models.CharField(max_length=120,unique=True,null=False)
     email = models.EmailField(unique=True,blank=False, null=False)
-    phone_number = models.CharField(max_length=20)
+    phone_number = models.CharField(max_length=20,null=True,blank=True)
     address = models.CharField(max_length=255)
 
     def __str__(self):
