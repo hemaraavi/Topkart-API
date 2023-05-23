@@ -1,14 +1,15 @@
-from django.shortcuts import render
+from django.shortcuts import render,get_object_or_404
 from django.http import JsonResponse 
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import ListView
-from django.contrib.auth.models import User, Permission
+from django.contrib.auth.models import User, Permission, Group
 from django.contrib.contenttypes.models import ContentType
 from datetime import datetime, timedelta
 from .models import *
 import json
+import random 
 
-@csrf_exempt
+
 class CreateUserWithPermissions(ListView):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -40,12 +41,12 @@ class CreateUserWithPermissions(ListView):
             user_based_permissions = self.user_based_perms.get(user_type,[])
 
         # Creating user
-        error,created_user = self.create_user(username,password,email,phone=phone)
+        error,created_user = self.create_user(username,password,email,phone=phone_number)
         if error or not created_user:
             return JsonResponse(error, status=400)
         else:
             # Creating
-            user_role = create_role_with_permissions(user_type.lower(),permissions)
+            user_role = create_role_with_permissions(user_type.lower(),user_based_permissions)
             if not user_role:
                 error = {'error':'Fail'}
                 return JsonResponse({'message': 'Fail'}, status=500)
@@ -75,7 +76,7 @@ class CreateUserWithPermissions(ListView):
 
 def create_role_with_permissions(name,permissions):
     # Name and Permissions are required to create a Role
-    if not name or permissions:
+    if not name or  not permissions:
         return False
 
     # Create or Get a  role
@@ -133,7 +134,7 @@ class LightningDealHandler:
         lightning_deal.save()
 
         # Returning a success response
-        return JsonResponse(response_data,status=200)
+        return JsonResponse({'message':"Lightning Deal created Sucessfully"},status=200)
 
     @staticmethod
     def get_lightning_deals(request):
@@ -152,14 +153,14 @@ class LightningDealHandler:
             filter['final_price'] = final_price
 
         # Retrieving the lightning deal from the database
-        lightning_deals = list(LightningDeal.objects.filter(**fitlers).values(
+        lightning_deals = list(LightningDeal.objects.filter(**filters).values(
             'deal_code','product_name','actual_price','id',
             'final_price','total_units','available_units'
         ))
 
         # Returning the lightning deal details in the response
         response_data = {
-            data : lightning_deals
+            'data' : lightning_deals
         }
         return JsonResponse(response_data,status=200)
 
@@ -189,20 +190,20 @@ class LightningDealHandler:
         }
         return JsonResponse(response_data,status=200)
 
-    def generate_deal_code(product_name, final_price):
-        # Generating a random number between 1 and 9999
-        random_number = random.randint(1, 9999)
+def generate_deal_code(product_name, final_price):
+    # Generating a random number between 1 and 9999
+    random_number = random.randint(1, 9999)
 
-        # Concatenating the product name, final price, and random number
-        deal_code = f"{product_name}{final_price}{random_number}"
+    # Concatenating the product name, final price, and random number
+    deal_code = f"{product_name}{final_price}{random_number}"
 
-        return deal_code
+    return deal_code
     
 
 
 class OrderHandler:
     @staticmethod
-    def create_order(request, lightning_deal_id,customer_id):
+    def create_order(request, customer_name,lightning_deal_id):
         # Retrieving the lightning deal associated with the order
         lightning_deal = get_object_or_404(LightningDeal, pk=lightning_deal_id)
 
@@ -212,20 +213,21 @@ class OrderHandler:
         }
             return JsonResponse(response_data,status=400)
         #Get the customer who place the order
-        customer = get_object_or_404(CustomUser, pk=customer_id)
-
+        customer = get_object_or_404(CustomUser, username=customer_name)
+        order_reference = generate_order_code(lightning_deal.product_name,customer.username)
         # Creating the order instance
         order = Order(
             lightning_deal=lightning_deal,
             customer= customer,
             order_reference=order_reference,
-            status = Order.OPEN
+            status = 'OPEN'
         )
         order.save()
 
         # Returning a success response
         response_data = {
-            'message': 'Order Placed successfully.'
+            'message': 'Order Placed successfully.',
+            'order_id':order.id
         }
         return JsonResponse(response_data,status=200)
 
@@ -288,11 +290,11 @@ class OrderHandler:
         }
         return JsonResponse(response_data)
 
-    def generate_order_code(product_name, customer_name):
-        # Generating a random number between 1 and 9999
-        random_number = random.randint(1, 9999)
+def generate_order_code(product_name, customer_name):
+    # Generating a random number between 1 and 9999
+    random_number = random.randint(1, 9999)
 
-        # Concatenating the product name, final price, and random number
-        order_code = f"{product_name}{customer_name}{random_number}"
+    # Concatenating the product name, final price, and random number
+    order_code = f"{product_name}{customer_name}{random_number}"
 
-        return order_code
+    return order_code
